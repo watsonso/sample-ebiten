@@ -1,2 +1,2 @@
 # sample-ebiten
-https://ebiten.org/
+from https://ebiten.org/
