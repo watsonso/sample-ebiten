@@ -3,6 +3,7 @@ package twenty48
 import (
 	"math/rand"
 	"time"
+	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -15,6 +16,11 @@ const (
 	ScreenWidth = 420
 	ScreenHeight = 600
 	boardSize = 4
+)
+
+var (
+	backgroundColor = color.RGBA{0xfa, 0xf8, 0xef, 0xff}
+	frameColor      = color.RGBA{0xbb, 0xad, 0xa0, 0xff}
 )
 
 // Game represents a game state.
@@ -35,4 +41,31 @@ func NewGame() (*Game, error) {
 		return nil, err
 	}
 	return g, nil
+}
+
+// Layout implements ebiten.Game's Layout.
+func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
+	return ScreenWidth, ScreenHeight
+}
+
+// Update updates the creent game state.
+func (g *Game) Update() error {
+	return nil
+}
+
+// Draw draws the current game to the given screen.
+func (g *Game) Draw(screen *ebiten.Image) {
+	if g.boardImage == nil {
+		w, h := g.board.Size()
+		g.boardImage = ebiten.NewImage(w, h)
+	}
+	screen.Fill(backgroundColor)
+	g.board.Draw(g.boardImage)
+	op := &ebiten.DrawImageOptions{}
+	sw, sh := screen.Size()
+	bw, bh := g.boardImage.Size()
+	x := (sw - bw) / 2
+	y := (sh - bh) / 2
+	op.GeoM.Translate(float64(x), float64(y))
+	screen.DrawImage(g.boardImage, op)
 }

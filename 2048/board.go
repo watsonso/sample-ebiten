@@ -30,3 +30,13 @@ func NewBoard(size int) (*Board, error) {
 	// }
 	return b, nil
 }
+
+func (b *Board) Size() (int, int) {
+	w := 1
+	h := 1
+	return w, h
+}
+
+func (b *Board) Draw(boardImage *ebiten.Image){
+	boardImage = nil
+}
