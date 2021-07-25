@@ -4,27 +4,18 @@ import(
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+
+	"github.com/watsonso/sample-ebiten/2048"
 )
 
-type Game struct{}
-
-func (g *Game) Update() error {
-	return nil
-}
-
-func (g *Game) Draw(screen *ebiten.Image) {
-	ebitenutil.DebugPrint(screen, "Hello, World!")
-}
-
-func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
-	return 320, 240
-}
-
 func main() {
-	ebiten.SetWindowSize(640, 480)
-	ebiten.SetWindowTitle("Hello, World!")
-	if err := ebiten.RunGame(&Game{}); err != nil {
+	game, err := twenty48.NewGame()
+	if err != nil {
+		log.Fatal(err)
+	}
+	ebiten.SetWindowSize(twenty48.ScreenWidth, twenty48.ScreenHeight)
+	ebiten.SetWindowTitle("2048(Ebiten Demo)")
+	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)
 	}
 }
