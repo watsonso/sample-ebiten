@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"log"
 	"math/rand"
+	"sort"
 	"strconv"
 
 	"golang.org/x/image/font"
@@ -91,6 +92,16 @@ func (t *Tile) IsMoving() bool {
 	return 0 < t.movingCount
 }
 
+func (t *Tile) stopAnimation() {
+	if 0 < t.movingCount {
+		t.current = t.next
+		t.next = TileData{}
+	}
+	t.movingCount = 0
+	t.startPoppingCount = 0
+	t.poppingCount = 0
+}
+
 func tileAt(tiles map[*Tile]struct{}, x, y int) *Tile {
 	var result *Tile
 	for t := range tiles {
@@ -105,10 +116,122 @@ func tileAt(tiles map[*Tile]struct{}, x, y int) *Tile {
 	return result
 }
 
+func currentOrNextTileAt(tiles map[*Tile]struct{}, x, y int) *Tile {
+	var result *Tile
+	for t := range tiles {
+		if 0 < t.movingCount {
+			if t.next.x != x || t.next.y != y || t.next.value == 0 {
+				continue
+			}
+		} else {
+			if t.current.x != x || t.current.y != y {
+				continue
+			}
+		}
+		if result != nil {
+			panic("not reach")
+		}
+		result = t
+	}
+	return result
+}
+
 const (
 	maxMovingCount  = 5
 	maxPoppingCount = 6
 )
+
+// MoveTiles moves tiles in the given tiles map if possible.
+// MoveTiles returns true if there are tiles that are to move, otherwise false.
+//
+// When MoveTiles is called, all tiles must not be about to move.
+func MoveTiles(tiles map[*Tile]struct{}, size int, dir Dir) bool {
+	vx, vy := dir.Vector()
+	tx := []int{}
+	ty := []int{}
+	for i := 0; i < size; i++ {
+		tx = append(tx, i)
+		ty = append(ty, i)
+	}
+	if vx > 0 {
+		sort.Sort(sort.Reverse(sort.IntSlice(tx)))
+	}
+	if vy > 0 {
+		sort.Sort(sort.Reverse(sort.IntSlice(ty)))
+	}
+
+	moved := false
+	for _, j := range ty {
+		for _, i := range tx {
+			t := tileAt(tiles, i, j)
+			if t == nil {
+				continue
+			}
+			if t.next != (TileData{}) {
+				panic("not reach")
+			}
+			if t.IsMoving() {
+				panic("not reach")
+			}
+			// (ii, jj) is the next position for tile t.
+			// (ii, jj) is updated until a mergeable tile is found or
+			// the tile t can't be moved any more.
+			ii := i
+			jj := j
+			for {
+				ni := ii + vx
+				nj := jj + vy
+				if ni < 0 || ni >= size || nj < 0 || nj >= size {
+					break
+				}
+				tt := currentOrNextTileAt(tiles, ni, nj)
+				if tt == nil {
+					ii = ni
+					jj = nj
+					moved = true
+					continue
+				}
+				if t.current.value != tt.current.value {
+					break
+				}
+				if 0 < tt.movingCount && tt.current.value != tt.next.value {
+					// tt is already being merged with another tile.
+					// Break here without updating (ii, jj).
+					break
+				}
+				ii = ni
+				jj = nj
+				moved = true
+				break
+			}
+			// next is the next state of the tile t.
+			next := TileData{}
+			next.value = t.current.value
+			// If there is a tile at the next position (ii, jj), this should be
+			// mergeable. Let's merge.
+			if tt := currentOrNextTileAt(tiles, ii, jj); tt != t && tt != nil {
+				next.value = t.current.value + tt.current.value
+				tt.next.value = 0
+				tt.next.x = ii
+				tt.next.y = jj
+				tt.movingCount = maxMovingCount
+			}
+			next.x = ii
+			next.y = jj
+			if t.current != next {
+				t.next = next
+				t.movingCount = maxMovingCount
+			}
+		}
+	}
+	if !moved {
+		for t := range tiles {
+			t.next = TileData{}
+			t.movingCount = 0
+		}
+	}
+	return moved
+}
 
 func addRandomTile(tiles map[*Tile]struct{}, size int) error {
 	cells := make([]bool, size*size)
@@ -138,6 +261,26 @@ func addRandomTile(tiles map[*Tile]struct{}, size int) error {
 	y := c / size
 	t := NewTile(v, x, y)
 	tiles[t] = struct{}{}
+	return nil
+}
+
+// Update updates the tile's animation states.
+func (t *Tile) Update() error {
+	switch {
+	case 0 < t.movingCount:
+		t.movingCount--
+		if t.movingCount == 0 {
+			if t.current.value != t.next.value && 0 < t.next.value {
+				t.poppingCount = maxPoppingCount
+			}
+			t.current = t.next
+			t.next = TileData{}
+		}
+	case 0 < t.startPoppingCount:
+		t.startPoppingCount--
+	case 0 < t.poppingCount:
+		t.poppingCount--
+	}
 	return nil
 }
 

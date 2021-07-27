@@ -1,7 +1,6 @@
 package twenty48
 
 import (
-	"image/color"
 	"math/rand"
 	"time"
 
@@ -16,11 +15,6 @@ const (
 	ScreenWidth  = 420
 	ScreenHeight = 600
 	boardSize    = 4
-)
-
-var (
-	backgroundColor = color.RGBA{0xfa, 0xf8, 0xef, 0xff}
-	frameColor      = color.RGBA{0xbb, 0xad, 0xa0, 0xff}
 )
 
 // Game represents a game state.
@@ -50,6 +44,10 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeigh
 
 // Update updates the creent game state.
 func (g *Game) Update() error {
+	g.input.Update()
+	if err := g.board.Update(g.input); err != nil {
+		return err
+	}
 	return nil
 }
 
