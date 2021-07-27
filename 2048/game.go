@@ -1,9 +1,9 @@
 package twenty48
 
 import (
+	"image/color"
 	"math/rand"
 	"time"
-	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
 )
@@ -13,9 +13,9 @@ func init() {
 }
 
 const (
-	ScreenWidth = 420
+	ScreenWidth  = 420
 	ScreenHeight = 600
-	boardSize = 4
+	boardSize    = 4
 )
 
 var (
@@ -25,8 +25,8 @@ var (
 
 // Game represents a game state.
 type Game struct {
-	input *Input
-	board *Board
+	input      *Input
+	board      *Board
 	boardImage *ebiten.Image
 }
 

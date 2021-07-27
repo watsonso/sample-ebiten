@@ -1,11 +1,11 @@
 package main
 
-import(
+import (
 	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
 
-	"github.com/watsonso/sample-ebiten/2048"
+	twenty48 "github.com/watsonso/sample-ebiten/2048"
 )
 
 func main() {
