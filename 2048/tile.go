@@ -5,12 +5,14 @@ import (
 	"image/color"
 	"log"
 	"math/rand"
+	"strconv"
 
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/opentype"
 
 	"github.com/hajimehoshi/ebiten/examples/resources/fonts"
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/text"
 )
 
 var (
@@ -89,6 +91,20 @@ func (t *Tile) IsMoving() bool {
 	return 0 < t.movingCount
 }
 
+func tileAt(tiles map[*Tile]struct{}, x, y int) *Tile {
+	var result *Tile
+	for t := range tiles {
+		if t.current.x != x || t.current.y != y {
+			continue
+		}
+		if result != nil {
+			panic("not reach")
+		}
+		result = t
+	}
+	return result
+}
+
 const (
 	maxMovingCount  = 5
 	maxPoppingCount = 6
@@ -125,6 +141,29 @@ func addRandomTile(tiles map[*Tile]struct{}, size int) error {
 	return nil
 }
 
+func colorToScale(clr color.Color) (float64, float64, float64, float64) {
+	r, g, b, a := clr.RGBA()
+	rf := float64(r) / 0xffff
+	gf := float64(g) / 0xffff
+	bf := float64(b) / 0xffff
+	af := float64(a) / 0xffff
+	// Convert to non-premultiplied alpha components.
+	if 0 < af {
+		rf /= af
+		gf /= af
+		bf /= af
+	}
+	return rf, gf, bf, af
+}
+
+func mean(a, b int, rate float64) int {
+	return int(float64(a)*(1-rate) + float64(b)*rate)
+}
+
+func meanF(a, b float64, rate float64) float64 {
+	return a*(1-rate) + b*rate
+}
+
 const (
 	tileSize   = 80
 	tileMargin = 4
@@ -136,4 +175,65 @@ var (
 
 func init() {
 	tileImage.Fill(color.White)
+}
+
+// Draw draws the current tile to the given boardImage.
+func (t *Tile) Draw(boardImage *ebiten.Image) {
+	i, j := t.current.x, t.current.y
+	ni, nj := t.next.x, t.next.y
+	v := t.current.value
+	if v == 0 {
+		return
+	}
+	op := &ebiten.DrawImageOptions{}
+	x := i*tileSize + (i+1)*tileMargin
+	y := j*tileSize + (j+1)*tileMargin
+	nx := ni*tileSize + (ni+1)*tileMargin
+	ny := nj*tileSize + (nj+1)*tileMargin
+	switch {
+	case 0 < t.movingCount:
+		rate := 1 - float64(t.movingCount)/maxMovingCount
+		x = mean(x, nx, rate)
+		y = mean(y, ny, rate)
+	case 0 < t.startPoppingCount:
+		rate := 1 - float64(t.startPoppingCount)/float64(maxPoppingCount)
+		scale := meanF(0.0, 1.0, rate)
+		op.GeoM.Translate(float64(-tileSize/2), float64(-tileSize/2))
+		op.GeoM.Scale(scale, scale)
+		op.GeoM.Translate(float64(tileSize/2), float64(tileSize/2))
+	case 0 < t.poppingCount:
+		const maxScale = 1.2
+		rate := 0.0
+		if maxPoppingCount*2/3 <= t.poppingCount {
+			// 0 to 1
+			rate = 1 - float64(t.poppingCount-2*maxPoppingCount/3)/float64(maxPoppingCount/3)
+		} else {
+			// 1 to 0
+			rate = float64(t.poppingCount) / float64(maxPoppingCount*2/3)
+		}
+		scale := meanF(1.0, maxScale, rate)
+		op.GeoM.Translate(float64(-tileSize/2), float64(-tileSize/2))
+		op.GeoM.Scale(scale, scale)
+		op.GeoM.Translate(float64(tileSize/2), float64(tileSize/2))
+	}
+	op.GeoM.Translate(float64(x), float64(y))
+	r, g, b, a := colorToScale(tileBackgroundColor(v))
+	op.ColorM.Scale(r, g, b, a)
+	boardImage.DrawImage(tileImage, op)
+	str := strconv.Itoa(v)
+
+	f := mplusBigFont
+	switch {
+	case 3 < len(str):
+		f = mplusSmallFont
+	case 2 < len(str):
+		f = mplusNormalFont
+	}
+
+	bound, _ := font.BoundString(f, str)
+	w := (bound.Max.X - bound.Min.X).Ceil()
+	h := (bound.Max.Y - bound.Min.Y).Ceil()
+	x = x + (tileSize-w)/2
+	y = y + (tileSize-h)/2 + h
+	text.Draw(boardImage, str, f, x, y, tileColor(v))
 }
